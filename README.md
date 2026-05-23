@@ -1,5 +1,13 @@
 # Dento Smart Firmware
 
+![PlatformIO](https://img.shields.io/badge/PlatformIO-Build-orange?logo=platformio&logoColor=white)
+![Framework](https://img.shields.io/badge/Framework-Arduino-00979D?logo=arduino&logoColor=white)
+![Board](https://img.shields.io/badge/Board-ESP32--C3-111111?logo=espressif&logoColor=white)
+![Display](https://img.shields.io/badge/Display-SH1106_OLED-blue)
+![Sensors](https://img.shields.io/badge/Sensors-GSR%20%7C%20DS18B20%20%7C%20MAX30102%20%7C%20HX710B-2e7d32)
+![Blood Pressure](https://img.shields.io/badge/Blood%20Pressure-Oscillometric%20Cuff-c62828)
+![Docs](https://img.shields.io/badge/Docs-README%20with%20Mermaid-6a1b9a)
+
 Firmware ini adalah perangkat lunak untuk `ESP32-C3-DevKitM-1` yang mengendalikan sistem monitoring fisiologis sederhana dengan menu OLED, pembacaan multi-sensor, pengukuran blood pressure berbasis cuff, konektivitas WiFi, dan upload data ke backend.
 
 Project dibangun dengan:
