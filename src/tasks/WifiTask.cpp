@@ -31,11 +31,17 @@ void wifi_task(void* parameter) {
     }
 
     const uint32_t nowMs = millis();
-    if (!connected && (nowMs - lastStatusLogMs) >= AppConfig::STATUS_PERIOD_MS) {
-      LOGI("WiFi still connecting...");
+    if (!connected && !app->services.wifi->isPortalActive() &&
+        (nowMs - lastStatusLogMs) >= AppConfig::STATUS_PERIOD_MS) {
+      LOGI("WiFi still connecting/reconnecting...");
       lastStatusLogMs = nowMs;
     }
 
-    vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(AppConfig::WIFI_HEALTHCHECK_PERIOD_MS));
+    if (app->services.wifi->isPortalActive()) {
+      vTaskDelay(pdMS_TO_TICKS(50));
+      lastWake = xTaskGetTickCount();
+    } else {
+      vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(AppConfig::WIFI_HEALTHCHECK_PERIOD_MS));
+    }
   }
 }

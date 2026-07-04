@@ -4,6 +4,7 @@
 
 #include "config/AppConfig.h"
 #include "models/SystemEvents.h"
+#include "network/WiFiService.h"
 #include "utils/SerialLog.h"
 
 void status_task(void* parameter) {
@@ -19,10 +20,11 @@ void status_task(void* parameter) {
 
     const EventBits_t bits = xEventGroupGetBits(app->sync.eventGroup);
     LOGI(
-        "STATUS heap=%u min_heap=%u wifi=%s ip=%s rssi=%d ui=%s bp=%s progress=%u sensor_q=%u "
+        "STATUS heap=%u min_heap=%u wifi=%s portal=%s ip=%s rssi=%d ui=%s bp=%s progress=%u sensor_q=%u "
         "logger_q=%u bits=0x%02x gsr=%.3f hr=%d temp=%.2f cuff=%.2f anx=%.2f",
         static_cast<unsigned>(ESP.getFreeHeap()), static_cast<unsigned>(ESP.getMinFreeHeap()),
         (bits & SystemEvents::WIFI_CONNECTED) ? "connected" : "down",
+        app->services.wifi->isPortalActive() ? "active" : "off",
         WiFi.localIP().toString().c_str(), WiFi.RSSI(), toString(stateCopy.uiScreen),
         toString(stateCopy.bpState), stateCopy.bpProgress,
         static_cast<unsigned>(uxQueueMessagesWaiting(app->queues.sensorQueue)),

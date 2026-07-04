@@ -1,5 +1,7 @@
 #include "network/WiFiService.h"
 
+#include <time.h>
+
 #include <WiFi.h>
 
 #include "config/AppConfig.h"
@@ -50,43 +52,96 @@ bool tryDebugFallbackConnect() {
 void WiFiService::begin() {
   WiFi.mode(WIFI_STA);
   manager_.setConnectTimeout(15);
-  manager_.setConfigPortalTimeout(180);
-  portalRequested_ = true;
+  manager_.setConfigPortalBlocking(false);
   fallbackAttempted_ = false;
-  LOGI("WiFiService initialized, portal scheduled");
+  portalActive_ = false;
+  startupPortalAttempted_ = false;
+  timeSyncConfigured_ = false;
+  startupConnectStartedMs_ = millis();
+  lastReconnectAttemptMs_ = 0;
+
+  const bool hasSavedCredentials = manager_.getWiFiIsSaved();
+  portalRequested_ = !hasSavedCredentials;
+  if (hasSavedCredentials) {
+    WiFi.begin();
+    LOGI("WiFiService initialized, saved WiFi credentials found");
+  } else {
+    LOGI("WiFiService initialized, no saved credentials: setup portal scheduled");
+  }
 }
 
 void WiFiService::maintain() {
-  if (WiFi.status() == WL_CONNECTED) {
+  if (portalActive_) {
+    portalRequested_ = false;
+    const bool connectedFromPortal = manager_.process();
+    if (WiFi.status() == WL_CONNECTED) {
+      LOGI("WiFi connected from setup portal ssid=%s ip=%s", WiFi.SSID().c_str(),
+           WiFi.localIP().toString().c_str());
+      stopPortal_();
+      return;
+    }
+    if (connectedFromPortal) {
+      LOGI("WiFiManager reports portal connection complete");
+    }
+    if ((millis() - portalStartedMs_) >= AppConfig::WIFI_PORTAL_TIMEOUT_MS) {
+      LOGW("WiFi setup portal timed out");
+      stopPortal_();
+      return;
+    }
     return;
   }
 
   if (portalRequested_) {
-#if defined(DEBUG_WIFI_FALLBACK_SSID) && defined(DEBUG_WIFI_FALLBACK_PASSWORD)
-    if (!fallbackAttempted_) {
-      fallbackAttempted_ = true;
-      if (tryDebugFallbackConnect()) {
-        portalRequested_ = false;
-        return;
-      }
-    }
-#endif
-    LOGI("Starting WiFiManager portal ssid=%s", AppConfig::WIFI_AP_NAME);
-    LOGI("WiFi status before portal: %s", wifiStatusToString(WiFi.status()));
-    const bool connected = manager_.autoConnect(AppConfig::WIFI_AP_NAME, AppConfig::WIFI_AP_PASSWORD);
     portalRequested_ = false;
-    LOGI("WiFiManager portal finished connected=%d status=%s ip=%s", connected,
-         wifiStatusToString(WiFi.status()), WiFi.localIP().toString().c_str());
+    startupPortalAttempted_ = true;
+    startPortal_();
     return;
   }
 
-  LOGW("WiFi disconnected, attempting reconnect status=%s", wifiStatusToString(WiFi.status()));
-  WiFi.reconnect();
+  if (WiFi.status() == WL_CONNECTED) {
+    if (!timeSyncConfigured_) {
+      configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+      timeSyncConfigured_ = true;
+      LOGI("UTC time sync configured");
+    }
+    return;
+  }
+
+  if (!startupPortalAttempted_ &&
+      (millis() - startupConnectStartedMs_) >= AppConfig::WIFI_STARTUP_CONNECT_TIMEOUT_MS) {
+    startupPortalAttempted_ = true;
+    LOGW("WiFi startup connect timed out, opening setup portal");
+    startPortal_();
+    return;
+  }
+
+#if defined(DEBUG_WIFI_FALLBACK_SSID) && defined(DEBUG_WIFI_FALLBACK_PASSWORD)
+  if (!fallbackAttempted_) {
+    fallbackAttempted_ = true;
+    if (tryDebugFallbackConnect()) {
+      return;
+    }
+  }
+#endif
+
+  const uint32_t nowMs = millis();
+  if ((nowMs - lastReconnectAttemptMs_) >= AppConfig::WIFI_RECONNECT_PERIOD_MS) {
+    lastReconnectAttemptMs_ = nowMs;
+    LOGW("WiFi disconnected, attempting reconnect status=%s", wifiStatusToString(WiFi.status()));
+    WiFi.reconnect();
+  }
 }
 
 bool WiFiService::isConnected() const { return WiFi.status() == WL_CONNECTED; }
 
+bool WiFiService::isPortalActive() const { return portalActive_; }
+
 void WiFiService::requestPortal() {
+  if (portalActive_) {
+    LOGI("WiFi setup portal already active ssid=%s ap_ip=%s", AppConfig::WIFI_PORTAL_AP_NAME,
+         WiFi.softAPIP().toString().c_str());
+    return;
+  }
   portalRequested_ = true;
   LOGI("WiFi captive portal requested from UI");
 }
@@ -94,3 +149,34 @@ void WiFiService::requestPortal() {
 String WiFiService::ipAddress() const { return WiFi.localIP().toString(); }
 
 String WiFiService::ssid() const { return WiFi.SSID(); }
+
+bool WiFiService::startPortal_() {
+  if (portalActive_) {
+    return true;
+  }
+
+  LOGI("Starting WiFiManager config portal ssid=%s", AppConfig::WIFI_PORTAL_AP_NAME);
+  LOGI("WiFi status before portal: %s", wifiStatusToString(WiFi.status()));
+
+  WiFi.disconnect(false);
+  WiFi.mode(WIFI_AP);
+  delay(100);
+
+  const bool started = manager_.startConfigPortal(AppConfig::WIFI_PORTAL_AP_NAME);
+  portalActive_ = manager_.getConfigPortalActive();
+  portalStartedMs_ = millis();
+
+  LOGI("WiFiManager portal started=%d active=%d ap_ip=%s mac=%s", started, portalActive_,
+       WiFi.softAPIP().toString().c_str(), WiFi.softAPmacAddress().c_str());
+  return portalActive_;
+}
+
+void WiFiService::stopPortal_() {
+  if (manager_.getConfigPortalActive()) {
+    manager_.stopConfigPortal();
+  }
+  portalActive_ = false;
+  WiFi.mode(WIFI_STA);
+  LOGI("WiFiManager portal stopped status=%s ip=%s", wifiStatusToString(WiFi.status()),
+       WiFi.localIP().toString().c_str());
+}

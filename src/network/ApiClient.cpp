@@ -57,13 +57,8 @@ String ApiClient::buildPayload(const SensorSnapshot& snapshot) const {
   doc["gsr"] = snapshot.gsr;
   doc["heart_rate"] = snapshot.heartRate;
   doc["temperature"] = snapshot.temperature;
-  if (snapshot.bp.valid) {
-    doc["blood_pressure_sys"] = snapshot.bp.systolic;
-    doc["blood_pressure_dia"] = snapshot.bp.diastolic;
-  } else {
-    doc["blood_pressure_sys"] = nullptr;
-    doc["blood_pressure_dia"] = nullptr;
-  }
+  doc["blood_pressure_sys"] = snapshot.bp.valid ? snapshot.bp.systolic : 0;
+  doc["blood_pressure_dia"] = snapshot.bp.valid ? snapshot.bp.diastolic : 0;
   doc["battery_level"] = snapshot.batteryLevel;
 
   String payload;

@@ -4,12 +4,15 @@
 #include "drivers/PneumaticController.h"
 #include "models/SystemEvents.h"
 #include "network/ApiClient.h"
+#include "network/WiFiService.h"
 #include "utils/SerialLog.h"
 
 void upload_task(void* parameter) {
   auto* app = static_cast<AppContext*>(parameter);
   SensorSnapshot snapshot;
   uint32_t lastUploadMs = 0;
+  uint32_t lastOfflineQueueMs = 0;
+  uint32_t lastDisconnectedLogMs = 0;
 
   for (;;) {
     if (xQueueReceive(app->queues.sensorQueue, &snapshot, pdMS_TO_TICKS(250)) != pdTRUE) {
@@ -22,12 +25,16 @@ void upload_task(void* parameter) {
     }
     lastUploadMs = nowMs;
 
+    if (app->services.wifi->isPortalActive()) {
+      continue;
+    }
+
     snapshot.bp = app->services.pneumatic->reading();
     const String payload = app->services.api->buildPayload(snapshot);
     bool success = false;
-    LOGI("Upload cycle started, payload=%s", payload.c_str());
 
     if ((xEventGroupGetBits(app->sync.eventGroup) & SystemEvents::WIFI_CONNECTED) != 0) {
+      LOGI("Upload cycle started");
       for (uint8_t attempt = 0; attempt < AppConfig::HTTP_RETRY_COUNT; ++attempt) {
         LOGI("Upload attempt %u/%u", static_cast<unsigned>(attempt + 1),
              static_cast<unsigned>(AppConfig::HTTP_RETRY_COUNT));
@@ -39,14 +46,19 @@ void upload_task(void* parameter) {
         vTaskDelay(pdMS_TO_TICKS(200));
       }
     } else {
-      LOGW("Upload deferred: WiFi not connected");
+      if ((nowMs - lastDisconnectedLogMs) >= AppConfig::STATUS_PERIOD_MS) {
+        LOGW("Upload deferred: WiFi not connected");
+        lastDisconnectedLogMs = nowMs;
+      }
     }
 
-    if (!success) {
+    if (!success && (nowMs - lastOfflineQueueMs) >= AppConfig::OFFLINE_QUEUE_PERIOD_MS) {
       UploadPayload queued;
       payload.toCharArray(queued.json, sizeof(queued.json));
-      xQueueSend(app->queues.loggerQueue, &queued, pdMS_TO_TICKS(20));
-      LOGW("Payload queued to offline logger");
+      if (xQueueSend(app->queues.loggerQueue, &queued, pdMS_TO_TICKS(20)) == pdTRUE) {
+        LOGW("Payload queued to offline logger");
+        lastOfflineQueueMs = nowMs;
+      }
     }
   }
 }

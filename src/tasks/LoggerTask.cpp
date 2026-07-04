@@ -12,9 +12,15 @@ void logger_task(void* parameter) {
 
   for (;;) {
     UploadPayload queuedPayload;
+    uint8_t storedCount = 0;
     while (xQueueReceive(app->queues.loggerQueue, &queuedPayload, 0) == pdTRUE) {
       const bool stored = app->services.storage->appendOfflinePayload(String(queuedPayload.json));
-      LOGI("Offline payload persisted=%d", stored);
+      if (stored) {
+        ++storedCount;
+      }
+    }
+    if (storedCount > 0) {
+      LOGI("Offline payloads persisted=%u", static_cast<unsigned>(storedCount));
     }
 
     if ((xEventGroupGetBits(app->sync.eventGroup) & SystemEvents::WIFI_CONNECTED) != 0 &&

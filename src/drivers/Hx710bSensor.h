@@ -8,7 +8,9 @@ class Hx710bSensor {
   void begin();
   bool isReady() const;
   int32_t readRaw();
+  bool tryReadRaw(int32_t& valueOut);
   float readPressureMmhg();
+  bool tryReadPressureMmhg(float& pressureOut);
 
  private:
   uint8_t clockPin_;
@@ -16,4 +18,3 @@ class Hx710bSensor {
   int32_t offset_ = 0;
   float scale_ = 12000.0f;
 };
-

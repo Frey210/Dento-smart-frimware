@@ -465,9 +465,16 @@ Dengan skema ini:
 
 Firmware utama menggunakan `WiFiManager`:
 
-- jika belum ada koneksi tersimpan, perangkat dapat membuka captive portal
+- jika belum ada koneksi tersimpan, perangkat membuka captive portal setup saat boot
+- jika sudah ada koneksi tersimpan, perangkat langsung mencoba konek ke WiFi terakhir
+- captive portal juga bisa dibuka manual dari menu `WiFi Setup`
+- AP setup bernama `DentoSmart-Setup`, tidak memakai password, dan aktif selama 5 menit per sesi setup
 - task WiFi akan terus memantau status koneksi
 - task upload hanya mengirim data saat event bit `WIFI_CONNECTED` aktif
+
+Jika ponsel tidak membuka portal otomatis, buka manual:
+
+`http://192.168.4.1`
 
 ### Debug Backend
 

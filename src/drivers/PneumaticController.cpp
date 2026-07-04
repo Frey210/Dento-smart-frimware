@@ -49,7 +49,11 @@ void PneumaticController::requestMeasurement() {
 }
 
 void PneumaticController::update(uint32_t nowMs) {
-  currentPressure_ = pressureSensor_.readPressureMmhg();
+  float latestPressure = currentPressure_;
+  const bool pressureReady = pressureSensor_.tryReadPressureMmhg(latestPressure);
+  if (pressureReady) {
+    currentPressure_ = latestPressure;
+  }
 
   if (state_ != BpState::IDLE &&
       (nowMs - measurementStartedMs_) > AppConfig::BP_MEASUREMENT_TIMEOUT_MS) {
@@ -66,6 +70,11 @@ void PneumaticController::update(uint32_t nowMs) {
       progress_ = 0;
       break;
     case BpState::INFLATING:
+      if (!pressureReady) {
+        setPump_(false);
+        setValve_(false);
+        break;
+      }
       setPump_(true);
       setValve_(false);
       progress_ = static_cast<uint8_t>(min(30.0f, currentPressure_ /
@@ -76,6 +85,11 @@ void PneumaticController::update(uint32_t nowMs) {
       }
       break;
     case BpState::HOLD:
+      if (!pressureReady) {
+        setPump_(false);
+        setValve_(false);
+        break;
+      }
       setPump_(false);
       setValve_(false);
       progress_ = 40;
@@ -84,6 +98,11 @@ void PneumaticController::update(uint32_t nowMs) {
       }
       break;
     case BpState::MEASURING:
+      if (!pressureReady) {
+        setPump_(false);
+        setValve_(false);
+        break;
+      }
       setPump_(false);
       setValve_(((nowMs - stateStartedMs_) % kValvePulsePeriodMs) <
                 measurementValveOpenWindowMs(currentPressure_));
@@ -98,6 +117,11 @@ void PneumaticController::update(uint32_t nowMs) {
       }
       break;
     case BpState::DEFLATING:
+      if (!pressureReady) {
+        setPump_(false);
+        setValve_(true);
+        break;
+      }
       setPump_(false);
       setValve_(true);
       progress_ = 90;

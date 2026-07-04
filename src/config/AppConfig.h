@@ -9,6 +9,7 @@ constexpr char API_ENDPOINT[] =
     "https://dento-backend.inkubasistartupunhas.id/api/sensor-data";
 constexpr char WIFI_AP_NAME[] = "Aerasea";
 constexpr char WIFI_AP_PASSWORD[] = "Mtc28082023";
+constexpr char WIFI_PORTAL_AP_NAME[] = "DentoSmart-Setup";
 
 constexpr uint8_t PIN_PUMP = 5;
 constexpr uint8_t PIN_VALVE = 6;
@@ -34,7 +35,11 @@ constexpr uint32_t I2C_FREQUENCY = 400000;
 constexpr uint32_t SENSOR_SAMPLE_PERIOD_MS = 200;
 constexpr uint32_t UI_REFRESH_PERIOD_MS = 100;
 constexpr uint32_t WIFI_HEALTHCHECK_PERIOD_MS = 1000;
+constexpr uint32_t WIFI_STARTUP_CONNECT_TIMEOUT_MS = 15000;
+constexpr uint32_t WIFI_PORTAL_TIMEOUT_MS = 300000;
+constexpr uint32_t WIFI_RECONNECT_PERIOD_MS = 5000;
 constexpr uint32_t UPLOAD_PERIOD_MS = 1000;
+constexpr uint32_t OFFLINE_QUEUE_PERIOD_MS = 15000;
 constexpr uint32_t LOGGER_PERIOD_MS = 5000;
 constexpr uint32_t STATUS_PERIOD_MS = 5000;
 constexpr uint32_t SENSOR_LOG_PERIOD_MS = 15000;

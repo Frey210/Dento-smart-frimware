@@ -38,8 +38,26 @@ int32_t Hx710bSensor::readRaw() {
   return value;
 }
 
+bool Hx710bSensor::tryReadRaw(int32_t& valueOut) {
+  if (!isReady()) {
+    return false;
+  }
+
+  valueOut = readRaw();
+  return true;
+}
+
 float Hx710bSensor::readPressureMmhg() {
   const int32_t raw = readRaw() - offset_;
   return static_cast<float>(raw) / scale_;
 }
 
+bool Hx710bSensor::tryReadPressureMmhg(float& pressureOut) {
+  int32_t raw = 0;
+  if (!tryReadRaw(raw)) {
+    return false;
+  }
+
+  pressureOut = static_cast<float>(raw - offset_) / scale_;
+  return true;
+}
