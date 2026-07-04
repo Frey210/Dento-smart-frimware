@@ -30,7 +30,10 @@ void loop() {
   }
 
   if ((nowMs - lastPrintMs) >= 500UL) {
-    Serial.printf("[%10lu ms] heart_rate=%d bpm\r\n", nowMs, max30102Sensor.latestHeartRate());
+    Serial.printf("[%10lu ms] ir=%lu finger=%d heart_rate=%d bpm\r\n", nowMs,
+                  static_cast<unsigned long>(max30102Sensor.latestIr()),
+                  max30102Sensor.fingerDetected(),
+                  max30102Sensor.latestHeartRate());
     lastPrintMs = nowMs;
   }
   delay(20);

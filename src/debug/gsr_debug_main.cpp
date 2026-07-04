@@ -22,7 +22,7 @@ void setup() {
 void loop() {
   const uint32_t nowMs = millis();
   if ((nowMs - lastPrintMs) >= 500UL) {
-    const int raw = analogRead(AppConfig::PIN_GSR);
+    const int raw = gsrSensor.readRaw();
     const float normalized = gsrSensor.readNormalized();
     Serial.printf("[%10lu ms] raw=%4d normalized=%.4f\r\n", nowMs, raw, normalized);
     lastPrintMs = nowMs;

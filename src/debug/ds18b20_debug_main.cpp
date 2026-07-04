@@ -24,7 +24,9 @@ void loop() {
   ds18b20Sensor.update(nowMs);
 
   if ((nowMs - lastPrintMs) >= 1000UL) {
-    Serial.printf("[%10lu ms] temperature=%.2f C\r\n", nowMs, ds18b20Sensor.latestCelsius());
+    Serial.printf("[%10lu ms] devices=%u valid=%d temperature=%.2f C\r\n", nowMs,
+                  ds18b20Sensor.deviceCount(), ds18b20Sensor.hasValidReading(),
+                  ds18b20Sensor.latestCelsius());
     lastPrintMs = nowMs;
   }
   delay(20);

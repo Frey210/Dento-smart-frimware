@@ -22,7 +22,8 @@ void sensor_task(void* parameter) {
     snapshot.sampleMs = nowMs;
     snapshot.gsr = app->services.gsr->readNormalized();
     snapshot.heartRate = app->services.max30102->latestHeartRate();
-    snapshot.temperature = app->services.ds18b20->latestCelsius();
+    const bool temperatureValid = app->services.ds18b20->hasValidReading();
+    snapshot.temperature = temperatureValid ? app->services.ds18b20->latestCelsius() : 0.0f;
     snapshot.cuffPressure = app->services.pneumatic->currentPressure();
     snapshot.batteryLevel = AppConfig::DEFAULT_BATTERY_LEVEL;
     snapshot.bp = app->services.pneumatic->reading();
@@ -30,22 +31,27 @@ void sensor_task(void* parameter) {
     if (xSemaphoreTake(app->sync.stateMutex, pdMS_TO_TICKS(20)) == pdTRUE) {
       app->state.latestSensor = snapshot;
       // TODO: Replace placeholder anxiety score with a validated multimodal model.
+      const float temperatureScore = temperatureValid ? (snapshot.temperature / 40.0f) * 0.2f : 0.0f;
       app->state.anxietyScore =
           min(1.0f, (snapshot.gsr * 0.5f) + (snapshot.heartRate / 180.0f) * 0.3f +
-                        (snapshot.temperature / 40.0f) * 0.2f);
+                        temperatureScore);
       xSemaphoreGive(app->sync.stateMutex);
     }
 
     xQueueOverwrite(app->queues.sensorQueue, &snapshot);
-    if (snapshot.temperature <= -100.0f && (nowMs - lastWarningMs) >= AppConfig::STATUS_PERIOD_MS) {
-      LOGW("DS18B20 temperature invalid: %.2f C. Check wiring/sensor presence.", snapshot.temperature);
+    if (!temperatureValid && (nowMs - lastWarningMs) >= AppConfig::STATUS_PERIOD_MS) {
+      LOGW("DS18B20 temperature invalid. devices=%u value=%.2f C. Check wiring/sensor presence.",
+           app->services.ds18b20->deviceCount(), app->services.ds18b20->latestCelsius());
       lastWarningMs = nowMs;
     }
 
     if ((nowMs - lastLogMs) >= AppConfig::SENSOR_LOG_PERIOD_MS) {
-      LOGI("Sensor snapshot gsr=%.3f hr=%d temp=%.2f cuff=%.2f batt=%u bp=%s",
-           snapshot.gsr, snapshot.heartRate, snapshot.temperature, snapshot.cuffPressure,
-           snapshot.batteryLevel, snapshot.bp.valid ? "valid" : "null");
+      LOGI("Sensor snapshot gsr=%.3f hr=%d ir=%lu finger=%d temp=%.2f temp_valid=%d cuff=%.2f batt=%u bp=%s",
+           snapshot.gsr, snapshot.heartRate,
+           static_cast<unsigned long>(app->services.max30102->latestIr()),
+           app->services.max30102->fingerDetected(), snapshot.temperature,
+           temperatureValid, snapshot.cuffPressure, snapshot.batteryLevel,
+           snapshot.bp.valid ? "valid" : "null");
       lastLogMs = nowMs;
     }
     vTaskDelayUntil(&lastWake, pdMS_TO_TICKS(AppConfig::SENSOR_SAMPLE_PERIOD_MS));
