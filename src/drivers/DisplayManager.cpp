@@ -4,13 +4,22 @@
 
 DisplayManager::DisplayManager() : display_(U8G2_R0, U8X8_PIN_NONE) {}
 
-void DisplayManager::begin() {
+bool DisplayManager::begin(uint8_t i2cAddress) {
+  display_.setI2CAddress(i2cAddress << 1);
   display_.begin();
   display_.setBusClock(AppConfig::I2C_FREQUENCY);
   display_.setFont(u8g2_font_5x8_tr);
+  ready_ = true;
+  return ready_;
 }
 
+bool DisplayManager::isReady() const { return ready_; }
+
 void DisplayManager::renderMenu(uint8_t selectedIndex) {
+  if (!ready_) {
+    return;
+  }
+
   static const char* kItems[] = {"Start BP", "Live Data", "WiFi Setup", "Device Info", "Calibrate"};
   constexpr uint8_t kVisibleItems = 4;
   const uint8_t startIndex =
@@ -51,6 +60,10 @@ void DisplayManager::renderMenu(uint8_t selectedIndex) {
 }
 
 void DisplayManager::renderLiveMonitor(const SensorSnapshot& snapshot, float anxietyScore) {
+  if (!ready_) {
+    return;
+  }
+
   char line[24];
   display_.clearBuffer();
   drawHeader_("Live Data");
@@ -90,6 +103,10 @@ void DisplayManager::renderLiveMonitor(const SensorSnapshot& snapshot, float anx
 
 void DisplayManager::renderBpProgress(BpState state, uint8_t progress, float pressureMmhg,
                                       const BloodPressureReading& reading) {
+  if (!ready_) {
+    return;
+  }
+
   char line[24];
   display_.clearBuffer();
   drawHeader_("Blood Pressure");
@@ -121,6 +138,10 @@ void DisplayManager::renderBpProgress(BpState state, uint8_t progress, float pre
 }
 
 void DisplayManager::renderMessage(const String& title, const String& body) {
+  if (!ready_) {
+    return;
+  }
+
   display_.clearBuffer();
   drawHeader_(title.c_str());
   display_.setFont(u8g2_font_5x8_tr);

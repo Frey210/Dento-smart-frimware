@@ -7,6 +7,8 @@
 namespace {
 constexpr uint32_t FINGER_IR_THRESHOLD = 50000UL;
 constexpr uint32_t FINGER_LOST_TIMEOUT_MS = 3000UL;
+constexpr uint32_t I2C_BUSY_WARNING_PERIOD_MS = 2000UL;
+constexpr uint32_t I2C_READ_WAIT_MS = 100UL;
 }
 
 bool Max30102Sensor::begin(TwoWire& wire) {
@@ -16,7 +18,7 @@ bool Max30102Sensor::begin(TwoWire& wire) {
     return false;
   }
 
-  const bool ok = sensor_.begin(wire, I2C_SPEED_FAST);
+  const bool ok = sensor_.begin(wire, AppConfig::I2C_FREQUENCY);
   if (!ok) {
     if (busMutex_ != nullptr) {
       xSemaphoreGive(busMutex_);
@@ -48,12 +50,24 @@ void Max30102Sensor::update(uint32_t nowMs) {
   }
 
   lastSampleMs_ = nowMs;
-  if (busMutex_ != nullptr && xSemaphoreTake(busMutex_, pdMS_TO_TICKS(20)) != pdTRUE) {
-    LOGW("MAX30102 read skipped: I2C busy");
+  if (busMutex_ != nullptr && xSemaphoreTake(busMutex_, pdMS_TO_TICKS(I2C_READ_WAIT_MS)) != pdTRUE) {
+    if ((nowMs - lastI2cBusyWarningMs_) >= I2C_BUSY_WARNING_PERIOD_MS) {
+      LOGW("MAX30102 read skipped: I2C busy");
+      lastI2cBusyWarningMs_ = nowMs;
+    }
     return;
   }
 
-  latestIr_ = sensor_.getIR();
+  sensor_.check();
+  if (sensor_.available() == 0) {
+    if (busMutex_ != nullptr) {
+      xSemaphoreGive(busMutex_);
+    }
+    return;
+  }
+
+  latestIr_ = sensor_.getFIFOIR();
+  sensor_.nextSample();
   if (busMutex_ != nullptr) {
     xSemaphoreGive(busMutex_);
   }

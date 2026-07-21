@@ -22,6 +22,7 @@ class Max30102Sensor {
   bool initialized_ = false;
   uint32_t lastSampleMs_ = 0;
   uint32_t lastBeatMs_ = 0;
+  uint32_t lastI2cBusyWarningMs_ = 0;
   uint32_t latestIr_ = 0;
   uint8_t rates_[RATE_BUFFER_SIZE] = {0};
   uint8_t rateSpot_ = 0;

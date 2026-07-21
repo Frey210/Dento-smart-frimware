@@ -39,6 +39,21 @@ ApiClient apiClient(AppConfig::API_ENDPOINT);
 StorageManager storageManager;
 MenuController* menuController = nullptr;
 
+uint8_t detectOledAddress() {
+  uint8_t detectedDisplayAddress = 0;
+  for (uint8_t address = 1; address < 127; ++address) {
+    Wire.beginTransmission(address);
+    const uint8_t error = Wire.endTransmission();
+    if (error == 0) {
+      LOGI("I2C device found address=0x%02X", address);
+      if (address == 0x3C || address == 0x3D) {
+        detectedDisplayAddress = address;
+      }
+    }
+  }
+  return detectedDisplayAddress;
+}
+
 bool initializeRtObjects(AppContext& ctx) {
   ctx.queues.sensorQueue = xQueueCreate(1, sizeof(SensorSnapshot));
   ctx.queues.loggerQueue = xQueueCreate(AppConfig::LOGGER_QUEUE_LENGTH, sizeof(UploadPayload));
@@ -78,6 +93,7 @@ void setup() {
   }
   delay(200);
   Wire.begin(AppConfig::PIN_I2C_SDA, AppConfig::PIN_I2C_SCL, AppConfig::I2C_FREQUENCY);
+  delay(100);
   analogReadResolution(12);
 
   LOGI("Booting %s", AppConfig::DEVICE_UID);
@@ -96,7 +112,13 @@ void setup() {
   pneumaticController.begin();
   buttonInput.begin();
   if (xSemaphoreTake(app.sync.i2cMutex, pdMS_TO_TICKS(100)) == pdTRUE) {
-    displayManager.begin();
+    const uint8_t oledAddress = detectOledAddress();
+    if (oledAddress != 0) {
+      displayManager.begin(oledAddress);
+      LOGI("OLED display initialized address=0x%02X", oledAddress);
+    } else {
+      LOGW("OLED display not detected on I2C address 0x3C/0x3D");
+    }
     xSemaphoreGive(app.sync.i2cMutex);
   }
   max30102Sensor.setBusMutex(app.sync.i2cMutex);

@@ -8,10 +8,11 @@
 class DisplayManager {
  public:
   DisplayManager();
-  void begin();
+  bool begin(uint8_t i2cAddress);
+  bool isReady() const;
   void renderMenu(uint8_t selectedIndex);
   void renderLiveMonitor(const SensorSnapshot& snapshot, float anxietyScore);
- void renderBpProgress(BpState state, uint8_t progress, float pressureMmhg,
+  void renderBpProgress(BpState state, uint8_t progress, float pressureMmhg,
                         const BloodPressureReading& reading);
   void renderMessage(const String& title, const String& body);
 
@@ -22,4 +23,5 @@ class DisplayManager {
   const char* bpStateLabel_(BpState state) const;
 
   U8G2_SH1106_128X64_NONAME_F_HW_I2C display_;
+  bool ready_ = false;
 };

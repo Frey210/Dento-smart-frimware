@@ -30,10 +30,10 @@ constexpr uint8_t PIN_DS18B20 = 1;
 constexpr uint8_t PIN_RESERVED = 0;
 
 constexpr uint32_t SERIAL_BAUD = 115200;
-constexpr uint32_t I2C_FREQUENCY = 400000;
+constexpr uint32_t I2C_FREQUENCY = 100000;
 
 constexpr uint32_t SENSOR_SAMPLE_PERIOD_MS = 200;
-constexpr uint32_t UI_REFRESH_PERIOD_MS = 100;
+constexpr uint32_t UI_REFRESH_PERIOD_MS = 500;
 constexpr uint32_t WIFI_HEALTHCHECK_PERIOD_MS = 1000;
 constexpr uint32_t WIFI_STARTUP_CONNECT_TIMEOUT_MS = 15000;
 constexpr uint32_t WIFI_PORTAL_TIMEOUT_MS = 300000;
