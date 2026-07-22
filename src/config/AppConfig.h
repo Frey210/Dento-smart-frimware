@@ -7,8 +7,6 @@ constexpr char DEVICE_UID[] = "ESP32-C3-020";
 constexpr char DEVICE_KEY[] = "KEY-ESP32-C3-020";
 constexpr char API_ENDPOINT[] =
     "https://dento-backend.inkubasistartupunhas.id/api/sensor-data";
-constexpr char WIFI_AP_NAME[] = "Aerasea";
-constexpr char WIFI_AP_PASSWORD[] = "Mtc28082023";
 constexpr char WIFI_PORTAL_AP_NAME[] = "DentoSmart-Setup";
 
 constexpr uint8_t PIN_PUMP = 5;
@@ -25,14 +23,14 @@ constexpr uint8_t PIN_I2C_SCL = 9;
 constexpr uint8_t PIN_HX710B_SCK = 4;
 constexpr uint8_t PIN_HX710B_DOUT = 2;
 constexpr uint8_t PIN_GSR = 3;
-constexpr uint8_t PIN_DS18B20 = 1;
+constexpr uint8_t PIN_DS18B20 = 0;
 
-constexpr uint8_t PIN_RESERVED = 0;
+constexpr uint8_t PIN_RESERVED = 1;
 
 constexpr uint32_t SERIAL_BAUD = 115200;
 constexpr uint32_t I2C_FREQUENCY = 100000;
 
-constexpr uint32_t SENSOR_SAMPLE_PERIOD_MS = 200;
+constexpr uint32_t SENSOR_SAMPLE_PERIOD_MS = 40;
 constexpr uint32_t UI_REFRESH_PERIOD_MS = 500;
 constexpr uint32_t WIFI_HEALTHCHECK_PERIOD_MS = 1000;
 constexpr uint32_t WIFI_STARTUP_CONNECT_TIMEOUT_MS = 15000;

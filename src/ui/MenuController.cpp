@@ -1,7 +1,9 @@
 #include "ui/MenuController.h"
 
+#include "config/AppConfig.h"
 #include "drivers/DisplayManager.h"
 #include "models/SystemEvents.h"
+#include "network/WiFiService.h"
 
 MenuController::MenuController(AppContext& app) : app_(app) {}
 
@@ -66,7 +68,10 @@ void MenuController::render() {
       app_.services.display->renderLiveMonitor(stateCopy.latestSensor, stateCopy.anxietyScore);
       break;
     case UiScreen::WIFI_SETUP:
-      app_.services.display->renderMessage("WiFi Setup", "Open captive portal");
+      app_.services.display->renderWifiStatus(
+          app_.services.wifi->statusLabel(), app_.services.wifi->isConnected(),
+          app_.services.wifi->isPortalActive(), app_.services.wifi->ssid(),
+          app_.services.wifi->ipAddress(), AppConfig::WIFI_PORTAL_AP_NAME);
       break;
     case UiScreen::DEVICE_INFO:
       app_.services.display->renderMessage("Device Info", "UID: ESP32-C3-001");

@@ -5,7 +5,7 @@
 #include "heartRate.h"
 
 namespace {
-constexpr uint32_t FINGER_IR_THRESHOLD = 50000UL;
+constexpr uint32_t FINGER_IR_THRESHOLD = 10000UL;
 constexpr uint32_t FINGER_LOST_TIMEOUT_MS = 3000UL;
 constexpr uint32_t I2C_BUSY_WARNING_PERIOD_MS = 2000UL;
 constexpr uint32_t I2C_READ_WAIT_MS = 100UL;
@@ -28,9 +28,9 @@ bool Max30102Sensor::begin(TwoWire& wire) {
     return false;
   }
 
-  sensor_.setup(0x2F, 4, 2, 400, 411, 4096);
+  sensor_.setup(0x1F, 4, 2, 100, 411, 4096);
   sensor_.setPulseAmplitudeRed(0x0A);
-  sensor_.setPulseAmplitudeIR(0x2F);
+  sensor_.setPulseAmplitudeIR(0x0A);
   sensor_.setPulseAmplitudeGreen(0x00);
   sensor_.clearFIFO();
   if (busMutex_ != nullptr) {
@@ -59,60 +59,63 @@ void Max30102Sensor::update(uint32_t nowMs) {
   }
 
   sensor_.check();
-  if (sensor_.available() == 0) {
-    if (busMutex_ != nullptr) {
-      xSemaphoreGive(busMutex_);
-    }
-    return;
-  }
-
-  latestIr_ = sensor_.getFIFOIR();
-  sensor_.nextSample();
+  uint8_t samplesAvailable = sensor_.available();
   if (busMutex_ != nullptr) {
     xSemaphoreGive(busMutex_);
   }
 
-  fingerDetected_ = latestIr_ >= FINGER_IR_THRESHOLD;
-  if (!fingerDetected_) {
-    if (lastBeatMs_ == 0 || (nowMs - lastBeatMs_) >= FINGER_LOST_TIMEOUT_MS) {
-      latestHeartRate_ = 0;
-      validRateCount_ = 0;
-      rateSpot_ = 0;
+  if (samplesAvailable == 0) {
+    return;
+  }
+
+  while (samplesAvailable > 0) {
+    latestIr_ = sensor_.getFIFOIR();
+    sensor_.nextSample();
+    --samplesAvailable;
+
+    fingerDetected_ = latestIr_ >= FINGER_IR_THRESHOLD;
+    if (!fingerDetected_) {
+      if (lastBeatMs_ == 0 || (nowMs - lastBeatMs_) >= FINGER_LOST_TIMEOUT_MS) {
+        latestHeartRate_ = 0;
+        validRateCount_ = 0;
+        rateSpot_ = 0;
+      }
+      continue;
     }
-    return;
-  }
 
-  if (!checkForBeat(static_cast<int32_t>(latestIr_))) {
-    return;
-  }
+    if (!checkForBeat(static_cast<int32_t>(latestIr_))) {
+      continue;
+    }
 
-  if (lastBeatMs_ == 0) {
+    if (lastBeatMs_ == 0) {
+      lastBeatMs_ = nowMs;
+      continue;
+    }
+
+    const uint32_t interval = nowMs - lastBeatMs_;
     lastBeatMs_ = nowMs;
-    return;
+    if (interval < 250UL || interval > 2000UL) {
+      continue;
+    }
+
+    const uint8_t beatsPerMinute = static_cast<uint8_t>(60000UL / interval);
+    if (beatsPerMinute < 20U || beatsPerMinute > 240U) {
+      continue;
+    }
+
+    rates_[rateSpot_] = beatsPerMinute;
+    rateSpot_ = (rateSpot_ + 1U) % RATE_BUFFER_SIZE;
+    if (validRateCount_ < RATE_BUFFER_SIZE) {
+      ++validRateCount_;
+    }
+
+    uint16_t total = 0;
+    for (uint8_t i = 0; i < validRateCount_; ++i) {
+      total += rates_[i];
+    }
+    latestHeartRate_ = total / validRateCount_;
   }
 
-  const uint32_t interval = nowMs - lastBeatMs_;
-  lastBeatMs_ = nowMs;
-  if (interval < 250UL || interval > 2000UL) {
-    return;
-  }
-
-  const uint8_t beatsPerMinute = static_cast<uint8_t>(60000UL / interval);
-  if (beatsPerMinute < 20U || beatsPerMinute > 240U) {
-    return;
-  }
-
-  rates_[rateSpot_] = beatsPerMinute;
-  rateSpot_ = (rateSpot_ + 1U) % RATE_BUFFER_SIZE;
-  if (validRateCount_ < RATE_BUFFER_SIZE) {
-    ++validRateCount_;
-  }
-
-  uint16_t total = 0;
-  for (uint8_t i = 0; i < validRateCount_; ++i) {
-    total += rates_[i];
-  }
-  latestHeartRate_ = total / validRateCount_;
 }
 
 int Max30102Sensor::latestHeartRate() const { return latestHeartRate_; }

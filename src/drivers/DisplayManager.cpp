@@ -137,6 +137,48 @@ void DisplayManager::renderBpProgress(BpState state, uint8_t progress, float pre
   display_.sendBuffer();
 }
 
+void DisplayManager::renderWifiStatus(const String& status, bool connected, bool portalActive,
+                                      const String& ssid, const String& ipAddress,
+                                      const String& portalName) {
+  if (!ready_) {
+    return;
+  }
+
+  char line[32];
+  display_.clearBuffer();
+  drawHeader_("WiFi Setup");
+  display_.setFont(u8g2_font_5x8_tr);
+
+  snprintf(line, sizeof(line), "Status: %s", status.c_str());
+  display_.drawStr(0, 22, line);
+
+  if (connected) {
+    snprintf(line, sizeof(line), "SSID: %.18s", ssid.c_str());
+    display_.drawStr(0, 34, line);
+    snprintf(line, sizeof(line), "IP: %.20s", ipAddress.c_str());
+    display_.drawStr(0, 46, line);
+    drawFooterHint_("ONLINE BACK");
+  } else if (portalActive) {
+    if (!ssid.isEmpty()) {
+      snprintf(line, sizeof(line), "Try: %.20s", ssid.c_str());
+      display_.drawStr(0, 34, line);
+      display_.drawStr(0, 46, "Use WPA2 / 2.4G");
+      drawFooterHint_("RETRY portal");
+    } else {
+      snprintf(line, sizeof(line), "AP: %.20s", portalName.c_str());
+      display_.drawStr(0, 34, line);
+      display_.drawStr(0, 46, "Open 192.168.4.1");
+      drawFooterHint_("SAVE WIFI");
+    }
+  } else {
+    display_.drawStr(0, 34, "Connecting...");
+    display_.drawStr(0, 46, "Portal if failed");
+    drawFooterHint_("WAIT BACK");
+  }
+
+  display_.sendBuffer();
+}
+
 void DisplayManager::renderMessage(const String& title, const String& body) {
   if (!ready_) {
     return;

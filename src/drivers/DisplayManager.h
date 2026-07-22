@@ -14,6 +14,8 @@ class DisplayManager {
   void renderLiveMonitor(const SensorSnapshot& snapshot, float anxietyScore);
   void renderBpProgress(BpState state, uint8_t progress, float pressureMmhg,
                         const BloodPressureReading& reading);
+  void renderWifiStatus(const String& status, bool connected, bool portalActive, const String& ssid,
+                        const String& ipAddress, const String& portalName);
   void renderMessage(const String& title, const String& body);
 
  private:
